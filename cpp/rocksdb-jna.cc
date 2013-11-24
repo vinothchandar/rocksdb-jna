@@ -7,6 +7,17 @@
 #include "rocksdb/cache.h"
 #include "rocksdb/filter_policy.h"
 
+enum StatusCode {
+    kOk = 0,
+    kNotFound = 1,
+    kCorruption = 2,
+    kNotSupported = 3,
+    kInvalidArgument = 4,
+    kIOError = 5,
+    kMergeInProgress = 6,
+    kIncomplete = 7
+};
+
 typedef struct ReadOptions {
 	int verifyChecksums;
 	int fillCache;
@@ -55,6 +66,8 @@ void logOptions(Options* opts) {
 
 void setupOpts(rocksdb::Options* ropts, Options* opts){
 
+	ropts->create_if_missing = true;
+
 	if (opts->cacheSizeBytes > 0){
 		ropts->block_cache = rocksdb::NewLRUCache((size_t)opts->cacheSizeBytes);
 	}
@@ -79,24 +92,66 @@ void setupOpts(rocksdb::Options* ropts, Options* opts){
 	ropts->no_block_cache = opts->noBlockCache;
 }
 
-extern "C" void* dbOpen(const char* dbPath, Options* opts) {
-	printf("Opening %s\n", dbPath);
-	rocksdb::DB* db;
-	rocksdb::Options options;
-	options.create_if_missing = true;
+void fillInStatus(rocksdb::Status* s, int* statusCode, char** errMsg) {
+	if(s->ok()){
+		*statusCode = kOk;
+	} else if (s->IsNotFound()) {
+		*statusCode = kNotFound;
+	} else if (s->IsCorruption()) {
+		*statusCode = kCorruption;
+	} else if (s->IsNotSupported()) {
+		*statusCode = kNotSupported;
+	} else if (s->IsInvalidArgument()) {
+		*statusCode = kInvalidArgument;
+	} else if (s->IsIOError()) {
+		*statusCode = kIOError;
+	} else if (s->IsMergeInProgress()) {
+		*statusCode = kMergeInProgress;
+	} else if (s->IsIncomplete()) {
+		*statusCode = kIncomplete;
+	} else {
+		*statusCode = -1;
+	}
 
+	if (s->ok()){
+		*errMsg = NULL;
+	} else {
+		std::string serr = s->ToString();
+
+		*errMsg = (char*)malloc(sizeof(char) * serr.size());
+		memset(*errMsg, 0, sizeof(char) * serr.size());
+		strcpy(*errMsg, serr.c_str());
+	}
+
+}
+
+extern "C" void* dbOpen(const char* dbPath,
+						Options* opts,
+						int* statusCode,
+						char** errorMsg)
+{
 	// Configure the database as requested
+	rocksdb::Options options;
 	logOptions(opts);
 	setupOpts(&options, opts);
 
 	// Alright, let's try to open it up.
+	rocksdb::DB* db = NULL;
 	rocksdb::Status status = rocksdb::DB::Open(options,
 												dbPath,
 												&db);
+	fillInStatus(&status, statusCode, errorMsg);
 	return db;
 }
 
-extern "C" void* _get(void* dbReference,const char* keyBuf, int keyLen, ReadOptions* readOpts, int* valueLen){
+extern "C" void* _get(void* dbReference,
+					  const char* keyBuf,
+					  int keyLen,
+					  ReadOptions* readOpts,
+					  int* valueLen,
+					  int* statusCode,
+					  char** errorMsg)
+{
 
 	rocksdb::DB* db = (rocksdb::DB*) dbReference;
 
@@ -111,6 +166,8 @@ extern "C" void* _get(void* dbReference,const char* keyBuf, int keyLen, ReadOpti
 	rocksdb::Status status = db->Get(rOpts,
 									 key,
 									 &value);
+	fillInStatus(&status, statusCode, errorMsg);
+
 	*valueLen = value.length();
 	char* ret = (char*) malloc(*valueLen);
 	// TODO avoid this extra copy
@@ -118,13 +175,23 @@ extern "C" void* _get(void* dbReference,const char* keyBuf, int keyLen, ReadOpti
 	return (void*) ret;
 }
 
-void prepWriteOpts(rocksdb::WriteOptions* wOpts, WriteOptions* opts){
+void prepWriteOpts(rocksdb::WriteOptions* wOpts,
+				   WriteOptions* opts)
+{
 	wOpts->sync = opts->sync;
 	wOpts->disableWAL = opts->disableWAL;
 }
 
 
-extern "C" void _put(void* dbReference,const char* keyBuf, int keyLen, const char* valueBuf, int valueLen, WriteOptions* writeOpts){
+extern "C" void _put(void* dbReference,
+		             const char* keyBuf,
+		             int keyLen,
+		             const char* valueBuf,
+		             int valueLen,
+		             WriteOptions* writeOpts,
+					 int* statusCode,
+					 char** errorMsg)
+{
 	rocksdb::DB* db = (rocksdb::DB*) dbReference;
 	rocksdb::Slice key(keyBuf, keyLen);
 	rocksdb::Slice value(valueBuf, valueLen);
@@ -134,15 +201,23 @@ extern "C" void _put(void* dbReference,const char* keyBuf, int keyLen, const cha
 	rocksdb::Status status = db->Put(wOpts,
 									 key,
 									 value);
+	fillInStatus(&status, statusCode, errorMsg);
 }
 
-extern "C" void _delete(void* dbReference,const char* keyBuf, int keyLen, WriteOptions* writeOpts){
+extern "C" void _delete(void* dbReference,
+						const char* keyBuf,
+						int keyLen,
+						WriteOptions* writeOpts,
+						int* statusCode,
+						char** errorMsg)
+{
 	rocksdb::DB* db = (rocksdb::DB*) dbReference;
 	rocksdb::Slice key(keyBuf, keyLen);
 	rocksdb::WriteOptions wOpts;
 	prepWriteOpts(&wOpts, writeOpts);
 	rocksdb::Status status = db->Delete(wOpts,
 									    key);
+	fillInStatus(&status, statusCode, errorMsg);
 }
 
 extern "C" void dbClose(void* dbReference) {

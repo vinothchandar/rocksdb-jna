@@ -27,14 +27,19 @@ public interface RocksDBWrapper extends Library {
     void dbClose(Pointer dbReference);
 
     void freePointer(Pointer memory);
-    
+
     Pointer openIterator(Pointer dbReference, ReadOptions readOpts);
-    
+
     boolean hasNext(Pointer itrReference);
-    
-    Pointer next(Pointer itrReference, IntByReference keyLen, IntByReference entryLen);
-    
+
+    Pointer next(Pointer itrReference, IntByReference keyLen,
+            IntByReference entryLen);
+
+    Pointer openRangeIterator(Pointer dbReference, ReadOptions readOpts,
+            ByteBuffer startKeyBuf, int startKeyLen);
+
+    boolean hasRangeNext(Pointer itrReference, ByteBuffer endKeyBuf,
+            int endKeyLen);
+
     void closeIterator(Pointer itrReference);
-    
-    
 }

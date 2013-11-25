@@ -106,17 +106,40 @@ extern "C" void freePointer(void* memory){
 }
 
 extern "C" void* openIterator(void* dbReference, ReadOptions* readOpts){
-	rocksdb::ReadOptions rOpts;
-	prepReadOpts(&rOpts, readOpts);
-	rocksdb::DB* db = (rocksdb::DB*) dbReference;
-	rocksdb::Iterator *itr = db->NewIterator(rOpts);
+	rocksdb::Iterator* itr = createIterator((rocksdb::DB*) dbReference, readOpts);
 	itr->SeekToFirst();
+	return itr;
+}
+
+extern "C" void* openRangeIterator(void* dbReference,
+								   ReadOptions* readOpts,
+								   const char* startKeyBuf,
+								   int startKeyLen)
+{
+	rocksdb::Iterator* itr = createIterator((rocksdb::DB*) dbReference, readOpts);
+	rocksdb::Slice startKeySlice(startKeyBuf, startKeyLen);
+	itr->Seek(startKeySlice);
 	return itr;
 }
 
 extern "C" int hasNext(void* itrReference){
 	rocksdb::Iterator* itr = (rocksdb::Iterator*) itrReference;
 	return itr->Valid();
+}
+
+extern "C" int hasRangeNext(void* itrReference, const char* endKeyBuf, int endKeyLen){
+	rocksdb::Iterator* itr = (rocksdb::Iterator*) itrReference;
+	if (itr->Valid()){
+		rocksdb::Slice key = itr->key();
+		rocksdb::Slice endKey(endKeyBuf, endKeyLen);
+		if (key.compare(endKey) <= 0){
+			return TRUE;
+		} else {
+			return FALSE;
+		}
+	} else {
+		return FALSE;
+	}
 }
 
 extern "C" void* next(void* itrReference, int* keyLen, int* entryLen){

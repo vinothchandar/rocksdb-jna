@@ -88,3 +88,9 @@ void prepReadOpts(rocksdb::ReadOptions* rOpts, ReadOptions* opts){
 	rOpts->verify_checksums = opts->verifyChecksums;
 	rOpts->fill_cache = opts->fillCache;
 }
+
+rocksdb::Iterator* createIterator(rocksdb::DB* db,ReadOptions* readOpts) {
+	rocksdb::ReadOptions rOpts;
+	prepReadOpts(&rOpts, readOpts);
+	return db->NewIterator(rOpts);
+}

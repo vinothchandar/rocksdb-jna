@@ -1,11 +1,9 @@
-import java.nio.ByteBuffer;
-import java.util.Random;
-
 import rocksdb.jna.Options;
 import rocksdb.jna.ReadOptions;
 import rocksdb.jna.RocksDB;
 import rocksdb.jna.RocksDBEntry;
 import rocksdb.jna.RocksDBEntryIterator;
+import rocksdb.jna.RocksDBRangeIterator;
 import rocksdb.jna.WriteOptions;
 
 public class RocksDBJNAIteratorExample {
@@ -29,34 +27,30 @@ public class RocksDBJNAIteratorExample {
 
         ReadOptions readOpts = new ReadOptions();
         WriteOptions writeOpts = new WriteOptions();
-       
-        for (int i=0; i < 1000; i++){
-            rocksdb.put(("key"+i).getBytes(), ("value"+i).getBytes(), writeOpts);
+
+        for (int i = 0; i < 1000; i += 2) {
+            rocksdb.put(("key" + i).getBytes(), ("value" + i).getBytes(),
+                    writeOpts);
         }
-        
-        
+
         RocksDBEntryIterator iterator = rocksdb.entriesIterator(readOpts);
-        int count = 0;
-        while (iterator.hasNext()){
+        while (iterator.hasNext()) {
             RocksDBEntry entry = iterator.next();
-            System.out.println("key :"+ new String(entry.getKey()) + 
-                               "value:"+ new String(entry.getValue()));
-            count++;
+            System.out.println("key :" + new String(entry.getKey()) + "value:"
+                    + new String(entry.getValue()));
         }
-        
+
         iterator.close();
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
+
+        RocksDBRangeIterator rangeIterator = rocksdb.rangeIterator(readOpts,
+                "key107".getBytes(), "key122".getBytes());
+        while (rangeIterator.hasNext()) {
+            RocksDBEntry entry = rangeIterator.next();
+            System.out.println("range key :" + new String(entry.getKey())
+                    + "range value:" + new String(entry.getValue()));
+        }
+        rangeIterator.close();
+
         rocksdb.close();
     }
 

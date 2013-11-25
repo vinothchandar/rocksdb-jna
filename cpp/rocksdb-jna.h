@@ -1,3 +1,7 @@
+
+#define FALSE 0
+#define TRUE 1
+
 enum StatusCode {
     kOk = 0,
     kNotFound = 1,

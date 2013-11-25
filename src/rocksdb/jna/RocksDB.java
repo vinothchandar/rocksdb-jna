@@ -81,10 +81,15 @@ public class RocksDB {
         rocksDBWrapper._delete(dbReference, ByteBuffer.wrap(key), key.length,
                 writeOpts, statusCode, errorMsgPtr);
     }
-    
-    
+
     public RocksDBEntryIterator entriesIterator(ReadOptions readOpts) {
         return new RocksDBEntryIterator(rocksDBWrapper, dbReference, readOpts);
+    }
+
+    public RocksDBRangeIterator rangeIterator(ReadOptions readOpts,
+            byte[] startKey, byte[] endKey) {
+        return new RocksDBRangeIterator(rocksDBWrapper, dbReference, readOpts,
+                startKey, endKey);
     }
 
     public void close() {

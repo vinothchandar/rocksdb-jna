@@ -81,6 +81,11 @@ public class RocksDB {
         rocksDBWrapper._delete(dbReference, ByteBuffer.wrap(key), key.length,
                 writeOpts, statusCode, errorMsgPtr);
     }
+    
+    
+    public RocksDBEntryIterator entriesIterator(ReadOptions readOpts) {
+        return new RocksDBEntryIterator(rocksDBWrapper, dbReference, readOpts);
+    }
 
     public void close() {
         System.out.println("Closing " + dbPath);

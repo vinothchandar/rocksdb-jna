@@ -4,6 +4,7 @@ import java.util.Random;
 import rocksdb.jna.Options;
 import rocksdb.jna.ReadOptions;
 import rocksdb.jna.RocksDB;
+import rocksdb.jna.RocksDBEntryIterator;
 import rocksdb.jna.WriteOptions;
 
 public class RocksDBJNAExample {
@@ -58,6 +59,23 @@ public class RocksDBJNAExample {
                 System.out.println("Read out :" + ByteBuffer.wrap(readVal));
             }
         }
+        
+        
+        RocksDBEntryIterator iterator = rocksdb.entriesIterator(readOpts);
+        System.out.println("hasNext :"+ iterator.hasNext());
+        iterator.close();
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         rocksdb.close();
     }
 

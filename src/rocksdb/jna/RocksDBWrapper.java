@@ -27,4 +27,14 @@ public interface RocksDBWrapper extends Library {
     void dbClose(Pointer dbReference);
 
     void freePointer(Pointer memory);
+    
+    Pointer openIterator(Pointer dbReference, ReadOptions readOpts);
+    
+    boolean hasNext(Pointer itrReference);
+    
+    Pointer next(Pointer itrReference, IntByReference keyLen, IntByReference entryLen);
+    
+    void closeIterator(Pointer itrReference);
+    
+    
 }
